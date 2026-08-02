@@ -35,23 +35,33 @@ export const Checkout = () => {
     },
   });
 
-  const selectedPlanData = plans.find((p) => p.id === selectedPlan);
+  const selectedPlanData = plans.find((p) => p.id === selectedPlan) ?? null;
 
   const onSubmit = async (data) => {
     setProcessing(true);
-    const amount = data.amountType === 'custom' ? Math.round(parseFloat(data.customAmount) * 100) : selectedPlanData.price;
-
-    if (!amount || amount < 100) {
-      toast.error('Amount must be at least ₹1');
-      setProcessing(false);
-      return;
-    }
 
     try {
+      const isCustomAmount = data.amountType === 'custom';
+      const amount = isCustomAmount
+        ? Math.round(Number.parseFloat(data.customAmount) * 100)
+        : selectedPlanData?.price;
+
+      if (!isCustomAmount && !selectedPlanData) {
+        toast.error('Please select a plan');
+        setProcessing(false);
+        return;
+      }
+
+      if (!Number.isFinite(amount) || amount < 100) {
+        toast.error('Amount must be at least ₹1');
+        setProcessing(false);
+        return;
+      }
+
       await initiatePayment({
         amount,
         currency: 'INR',
-        description: data.description || (data.amountType === 'custom' ? 'Custom Payment' : `${selectedPlanData.name} Plan`),
+        description: data.description || (isCustomAmount ? 'Custom Payment' : `${selectedPlanData.name} Plan`),
       });
     } catch (err) {
       setProcessing(false);
@@ -80,6 +90,7 @@ export const Checkout = () => {
                 key={plan.id}
                 onClick={() => {
                   setSelectedPlan(plan.id);
+                  setValue('amountType', 'plan');
                   setValue('customAmount', '');
                 }}
                 className={`rounded-2xl border-2 p-5 text-left transition-all ${
@@ -153,7 +164,10 @@ export const Checkout = () => {
               {...register('customAmount')}
               onChange={(e) => {
                 setValue('customAmount', e.target.value);
-                if (e.target.value) setSelectedPlan('');
+                if (e.target.value) {
+                  setSelectedPlan('');
+                  setValue('amountType', 'custom');
+                }
               }}
             />
           </div>

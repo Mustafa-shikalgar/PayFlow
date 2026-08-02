@@ -56,7 +56,7 @@ export const useRazorpay = ({ onSuccess, onError } = {}) => {
           },
           modal: {
             ondismiss: () => {
-              // User closed the modal
+              if (onError) onError({ dismissed: true });
             },
           },
         };

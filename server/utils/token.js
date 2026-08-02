@@ -1,57 +1,51 @@
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
-/**
- * Generate an access token (short-lived).
- */
+// Generate Access Token
 const generateAccessToken = (userId, role) => {
-  return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
-  });
+  return jwt.sign(
+    { id: userId, role },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || "15m",
+    }
+  );
 };
 
-/**
- * Generate a refresh token (long-lived).
- */
+// Generate Refresh Token
 const generateRefreshToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  });
+  return jwt.sign(
+    { id: userId },
+    process.env.JWT_REFRESH_SECRET,
+    {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+    }
+  );
 };
 
-/**
- * Verify an access token.
- */
+// Verify Access Token
 const verifyAccessToken = (token) => {
   return jwt.verify(token, process.env.JWT_SECRET);
 };
 
-/**
- * Verify a refresh token.
- */
+// Verify Refresh Token
 const verifyRefreshToken = (token) => {
   return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 };
 
-/**
- * Generate a random token for email verification / password reset.
- */
+// Generate Random Token
 const generateRandomToken = () => {
-  return require('crypto').randomBytes(32).toString('hex');
+  return crypto.randomBytes(32).toString("hex");
 };
 
-/**
- * Cookie options for refresh token.
- */
-const refreshTokenCookieOptions = () => {
-  const isProd = process.env.NODE_ENV === 'production';
-  return {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/',
-  };
-};
+// Refresh Token Cookie Options
+const refreshTokenCookieOptions = () => ({
+  httpOnly: true,
+  secure: true,          // HTTPS only
+  sameSite: "none",      // Required for Vercel <-> Render
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: "/",
+});
 
 module.exports = {
   generateAccessToken,

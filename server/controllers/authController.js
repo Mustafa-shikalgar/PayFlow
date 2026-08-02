@@ -53,7 +53,15 @@ const register = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   // Set refresh token cookie
-  res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions());
+console.log("Login cookie options:", refreshTokenCookieOptions());
+
+res.cookie(
+  "refreshToken",
+  refreshToken,
+  refreshTokenCookieOptions()
+);
+
+console.log("Refresh token generated:", refreshToken);
 
   res.status(201).json({
     success: true,
@@ -126,12 +134,12 @@ const logout = asyncHandler(async (req, res) => {
   }
 
   // Clear cookie
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    path: '/',
-  });
+  res.clearCookie("refreshToken", {
+  httpOnly: true,
+  secure: true,
+  sameSite: "none",
+  path: "/",
+});
 
   res.json({ success: true, message: 'Logged out successfully' });
 });
@@ -142,11 +150,15 @@ const logout = asyncHandler(async (req, res) => {
  * @access  Public (cookie)
  */
 const refreshToken = asyncHandler(async (req, res) => {
-  const { refreshToken: token } = req.cookies;
+  console.log("Cookies received:", req.cookies);
 
-  if (!token) {
-    throw new AppError('No refresh token provided', 401);
-  }
+const token = req.cookies.refreshToken;
+
+console.log("Refresh token from cookie:", token);
+
+if (!token) {
+  throw new AppError("No refresh token provided", 401);
+}
 
   try {
     const decoded = verifyRefreshToken(token);

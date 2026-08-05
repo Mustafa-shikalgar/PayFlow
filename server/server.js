@@ -31,20 +31,35 @@ const app = express();
 // Security headers
 app.use(helmet());
 
-// CORS
-console.log("CLIENT_URL =", process.env.CLIENT_URL);
+// CORS — FIX: support an array of allowed origins so Vercel preview URLs also work.
+// CLIENT_URL can be a comma-separated list, e.g.:
+//   CLIENT_URL=https://pay-flow-smoky.vercel.app,https://pay-flow-git-main.vercel.app
+const allowedOrigins = (process.env.CLIENT_URL || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+console.log('Allowed CORS origins:', allowedOrigins);
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g., Render health checks, curl, mobile apps)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn(`CORS blocked for origin: ${origin}`);
+      return callback(new Error(`CORS policy: origin ${origin} is not allowed`), false);
+    },
     credentials: true,
   })
 );
 
-// Request logging
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-}
+// Request logging — always on so Render production logs show request details
+app.use(morgan('dev'));
 
 // Body parsers
 app.use(express.json({ limit: '10mb' }));

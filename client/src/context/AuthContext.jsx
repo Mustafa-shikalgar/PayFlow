@@ -30,7 +30,9 @@ export const AuthProvider = ({ children }) => {
         const { data } = await authService.getMe();
         setUser(data.data.user);
       } catch (err) {
+        // Access token invalid/expired — clear all auth state
         localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         setUser(null);
       } finally {
         setLoading(false);
@@ -41,37 +43,48 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  // Listen for forced logout from API interceptor
+  // Listen for forced logout dispatched by the API interceptor
+  // (fires when /auth/refresh also fails — user must re-login)
   useEffect(() => {
     const handleLogout = () => {
       setUser(null);
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
     };
     window.addEventListener('auth:logout', handleLogout);
     return () => window.removeEventListener('auth:logout', handleLogout);
   }, []);
 
+  // FIX: Persist BOTH accessToken and refreshToken to localStorage on login.
+  // The refreshToken must be in localStorage so the axios interceptor can send
+  // it in the request body when cookies are blocked cross-origin
+  // (Vercel frontend <-> Render backend with modern browser third-party cookie blocking).
   const login = useCallback(async (email, password) => {
     const { data } = await authService.login({ email, password });
     localStorage.setItem('accessToken', data.data.accessToken);
+    localStorage.setItem('refreshToken', data.data.refreshToken);
     setUser(data.data.user);
     return data;
   }, []);
 
+  // FIX: Same as login — also persist refreshToken for register flow
   const register = useCallback(async (userData) => {
     const { data } = await authService.register(userData);
     localStorage.setItem('accessToken', data.data.accessToken);
+    localStorage.setItem('refreshToken', data.data.refreshToken);
     setUser(data.data.user);
     return data;
   }, []);
 
+  // FIX: Clear both tokens on logout
   const logout = useCallback(async () => {
     try {
       await authService.logout();
     } catch (err) {
-      // Ignore logout errors
+      // Ignore logout errors — clear local state regardless
     }
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     setUser(null);
   }, []);
 

@@ -1,17 +1,23 @@
 import axios from "axios";
 
+// FIX: In production (Vercel), this must be set to the Render backend URL
+// via the VITE_API_URL environment variable in Vercel's dashboard.
+// e.g. VITE_API_URL=https://payflow-api-82ff.onrender.com/api
 const API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true,
+  withCredentials: true, // Keep this so HttpOnly cookies are still sent when available
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Request interceptor
+// ─── Request Interceptor ────────────────────────────────────────────────────
+// Always attach the access token from localStorage as an Authorization header.
+// This is the primary authentication mechanism (the protect middleware reads
+// from req.headers.authorization).
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("accessToken");
@@ -25,7 +31,13 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
+// ─── Response Interceptor ───────────────────────────────────────────────────
+// On 401, attempt a token refresh then replay the failed request.
+//
+// FIX: When calling /auth/refresh, send the refreshToken from localStorage
+// in the request BODY. This is the fallback for cross-origin deployments
+// (Vercel frontend <-> Render backend) where modern browsers (Chrome 120+)
+// block third-party HttpOnly cookies, causing req.cookies to arrive empty.
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -63,21 +75,34 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const res = await api.post("/auth/refresh");
+        // FIX: Read stored refresh token and send it in the request body.
+        // The backend /auth/refresh endpoint now accepts the token from
+        // req.body.refreshToken as a fallback when req.cookies is empty.
+        const storedRefreshToken = localStorage.getItem("refreshToken");
 
-        const newToken = res.data.data.accessToken;
+        const res = await api.post("/auth/refresh", {
+          refreshToken: storedRefreshToken || undefined,
+        });
 
-        localStorage.setItem("accessToken", newToken);
+        const { accessToken, refreshToken: newRefreshToken } = res.data.data;
 
-        processQueue(null, newToken);
+        // Persist new tokens
+        localStorage.setItem("accessToken", accessToken);
+        if (newRefreshToken) {
+          localStorage.setItem("refreshToken", newRefreshToken);
+        }
 
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        processQueue(null, accessToken);
+
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
 
         return api(originalRequest);
       } catch (err) {
         processQueue(err);
 
+        // Clear all auth state and redirect to login
         localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
 
         window.dispatchEvent(new CustomEvent("auth:logout"));
 

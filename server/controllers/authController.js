@@ -48,25 +48,20 @@ const register = asyncHandler(async (req, res) => {
   const accessToken = generateAccessToken(user._id, user.role);
   const refreshToken = generateRefreshToken(user._id);
 
-  // Store refresh token hash in DB
+  // Store refresh token in DB
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
-  // Set refresh token cookie
-console.log("Login cookie options:", refreshTokenCookieOptions());
+  // Set refresh token as HttpOnly cookie (works when same-domain or cookies allowed)
+  res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions());
 
-res.cookie(
-  "refreshToken",
-  refreshToken,
-  refreshTokenCookieOptions()
-);
-
-console.log("Refresh token generated:", refreshToken);
-
+  // FIX: Also return refreshToken in response body so the frontend can store it
+  // in localStorage as a fallback when cross-origin cookies are blocked
+  // (e.g. Vercel frontend <-> Render backend with modern browser third-party cookie blocking)
   res.status(201).json({
     success: true,
     message: 'Registration successful. Please verify your email.',
-    data: { user, accessToken },
+    data: { user, accessToken, refreshToken },
   });
 });
 
@@ -99,11 +94,11 @@ const login = asyncHandler(async (req, res) => {
   const accessToken = generateAccessToken(user._id, user.role);
   const refreshToken = generateRefreshToken(user._id);
 
-  // Store refresh token
+  // Store refresh token in DB
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
-  // Set refresh token cookie
+  // Set refresh token as HttpOnly cookie (works when same-domain or cookies allowed)
   res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions());
 
   // Log login
@@ -115,10 +110,13 @@ const login = asyncHandler(async (req, res) => {
     status: 'success',
   });
 
+  // FIX: Also return refreshToken in response body so the frontend can store it
+  // in localStorage as a fallback when cross-origin cookies are blocked
+  // (e.g. Vercel frontend <-> Render backend with modern browser third-party cookie blocking)
   res.json({
     success: true,
     message: 'Login successful',
-    data: { user, accessToken },
+    data: { user, accessToken, refreshToken },
   });
 });
 
@@ -134,12 +132,12 @@ const logout = asyncHandler(async (req, res) => {
   }
 
   // Clear cookie
-  res.clearCookie("refreshToken", {
-  httpOnly: true,
-  secure: true,
-  sameSite: "none",
-  path: "/",
-});
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/',
+  });
 
   res.json({ success: true, message: 'Logged out successfully' });
 });
@@ -147,18 +145,25 @@ const logout = asyncHandler(async (req, res) => {
 /**
  * @desc    Refresh access token
  * @route   POST /api/auth/refresh
- * @access  Public (cookie)
+ * @access  Public (cookie OR body)
+ *
+ * FIX: Accepts the refresh token from EITHER:
+ *   1. req.cookies.refreshToken  — HttpOnly cookie (works same-domain or when
+ *      browser allows third-party cookies)
+ *   2. req.body.refreshToken     — Request body fallback (used when cross-origin
+ *      cookie is blocked, e.g. Vercel <-> Render in Chrome 120+ with third-party
+ *      cookie blocking enabled)
  */
 const refreshToken = asyncHandler(async (req, res) => {
-  console.log("Cookies received:", req.cookies);
+  // Accept token from cookie first, then fall back to request body
+  const token = req.cookies.refreshToken || req.body.refreshToken;
 
-const token = req.cookies.refreshToken;
+  console.log('Refresh attempt - cookies:', Object.keys(req.cookies));
+  console.log('Refresh attempt - token source:', req.cookies.refreshToken ? 'cookie' : req.body.refreshToken ? 'body' : 'none');
 
-console.log("Refresh token from cookie:", token);
-
-if (!token) {
-  throw new AppError("No refresh token provided", 401);
-}
+  if (!token) {
+    throw new AppError('No refresh token provided', 401);
+  }
 
   try {
     const decoded = verifyRefreshToken(token);
@@ -172,20 +177,23 @@ if (!token) {
       throw new AppError('Account has been deactivated', 403);
     }
 
-    // Generate new tokens
+    // Generate new tokens (token rotation)
     const accessToken = generateAccessToken(user._id, user.role);
     const newRefreshToken = generateRefreshToken(user._id);
 
     user.refreshToken = newRefreshToken;
     await user.save({ validateBeforeSave: false });
 
+    // Set new refresh token cookie
     res.cookie('refreshToken', newRefreshToken, refreshTokenCookieOptions());
 
+    // FIX: Also return new refreshToken in body so the frontend can update localStorage
     res.json({
       success: true,
-      data: { accessToken, user },
+      data: { accessToken, refreshToken: newRefreshToken, user },
     });
   } catch (err) {
+    if (err.statusCode) throw err; // re-throw AppErrors
     throw new AppError('Invalid or expired refresh token', 401);
   }
 });

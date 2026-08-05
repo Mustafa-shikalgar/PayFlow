@@ -91,8 +91,14 @@ const login = asyncHandler(async (req, res) => {
   }
 
   // Generate tokens
+  console.log("========== LOGIN DEBUG ==========");
+  console.log("JWT_SECRET used for signing:", process.env.JWT_SECRET);
+  console.log("JWT_REFRESH_SECRET used for signing:", process.env.JWT_REFRESH_SECRET);
+
   const accessToken = generateAccessToken(user._id, user.role);
   const refreshToken = generateRefreshToken(user._id);
+
+  console.log("Access Token generated:", accessToken);
 
   // Store refresh token in DB
   user.refreshToken = refreshToken;

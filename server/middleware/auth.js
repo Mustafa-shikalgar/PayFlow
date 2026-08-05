@@ -19,21 +19,34 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   try {
+    console.log("========== AUTH DEBUG ==========");
+    console.log("Authorization Header:", req.headers.authorization);
+    console.log("JWT_SECRET:", process.env.JWT_SECRET);
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    console.log("Decoded Token:", decoded);
+
     const user = await User.findById(decoded.id);
 
+    console.log("User Found:", user);
+
     if (!user) {
-      return next(new AppError('User no longer exists', 401));
+      return next(new AppError("User no longer exists", 401));
     }
 
     if (!user.isActive) {
-      return next(new AppError('Account has been deactivated', 403));
+      return next(new AppError("Account has been deactivated", 403));
     }
 
     req.user = user;
     next();
   } catch (err) {
-    return next(new AppError('Not authorized, token invalid or expired', 401));
+    console.log("========== JWT ERROR ==========");
+    console.log("Error Name:", err.name);
+    console.log("Error Message:", err.message);
+
+    return next(new AppError(err.message, 401));
   }
 });
 

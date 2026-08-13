@@ -55,64 +55,75 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (
+    // Backend error codes that mean "the access token itself is bad/expired"
+    // and therefore worth attempting a refresh. Everything else (validation
+    // errors, payment-gateway/business errors, etc.) must NOT trigger a token
+    // refresh loop.
+    const data = error.response?.data || {};
+    const tokenErrorCodes = ['NO_TOKEN', 'INVALID_TOKEN', 'TOKEN_EXPIRED'];
+
+    const shouldAttemptRefresh =
       error.response?.status === 401 &&
+      tokenErrorCodes.includes(data.code) &&
       !originalRequest._retry &&
       !originalRequest.url.includes("/auth/login") &&
       !originalRequest.url.includes("/auth/register") &&
-      !originalRequest.url.includes("/auth/refresh")
-    ) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        });
-      }
+      !originalRequest.url.includes("/auth/refresh");
 
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        // FIX: Read stored refresh token and send it in the request body.
-        // The backend /auth/refresh endpoint now accepts the token from
-        // req.body.refreshToken as a fallback when req.cookies is empty.
-        const storedRefreshToken = localStorage.getItem("refreshToken");
-
-        const res = await api.post("/auth/refresh", {
-          refreshToken: storedRefreshToken || undefined,
-        });
-
-        const { accessToken, refreshToken: newRefreshToken } = res.data.data;
-
-        // Persist new tokens
-        localStorage.setItem("accessToken", accessToken);
-        if (newRefreshToken) {
-          localStorage.setItem("refreshToken", newRefreshToken);
-        }
-
-        processQueue(null, accessToken);
-
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-
-        return api(originalRequest);
-      } catch (err) {
-        processQueue(err);
-
-        // Clear all auth state and redirect to login
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-
-        window.dispatchEvent(new CustomEvent("auth:logout"));
-
-        return Promise.reject(err);
-      } finally {
-        isRefreshing = false;
-      }
+    if (!shouldAttemptRefresh) {
+      // A 401/400/500 that is NOT a token problem (e.g. a payment gateway
+      // error or a validation error) is rejected as-is — no refresh attempt.
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then((token) => {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return api(originalRequest);
+      });
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      // FIX: Read stored refresh token and send it in the request body.
+      // The backend /auth/refresh endpoint now accepts the token from
+      // req.body.refreshToken as a fallback when req.cookies is empty.
+      const storedRefreshToken = localStorage.getItem("refreshToken");
+
+      const res = await api.post("/auth/refresh", {
+        refreshToken: storedRefreshToken || undefined,
+      });
+
+      const { accessToken, refreshToken: newRefreshToken } = res.data.data;
+
+      // Persist new tokens
+      localStorage.setItem("accessToken", accessToken);
+      if (newRefreshToken) {
+        localStorage.setItem("refreshToken", newRefreshToken);
+      }
+
+      processQueue(null, accessToken);
+
+      originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+
+      return api(originalRequest);
+    } catch (err) {
+      processQueue(err);
+
+      // Clear all auth state and redirect to login
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+
+      window.dispatchEvent(new CustomEvent("auth:logout"));
+
+      return Promise.reject(err);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );
 

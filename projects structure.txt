@@ -1,0 +1,135 @@
+﻿PayFlow
+|
+|   |-- .github
+|   |   `-- modernize
+|   |       `-- code-migration
+|   |           `-- .gitignore
+|   |-- client
+|   |   |-- public
+|   |   |   `-- favicon.svg
+|   |   |-- src
+|   |   |   |-- assets
+|   |   |   |   `-- .gitkeep
+|   |   |   |-- components
+|   |   |   |   |-- layout
+|   |   |   |   |   `-- Navbar.jsx
+|   |   |   |   |-- ui
+|   |   |   |   |   |-- Avatar.jsx
+|   |   |   |   |   |-- Badge.jsx
+|   |   |   |   |   |-- EmptyState.jsx
+|   |   |   |   |   |-- Logo.jsx
+|   |   |   |   |   |-- Pagination.jsx
+|   |   |   |   |   |-- Skeletons.jsx
+|   |   |   |   |   |-- Spinner.jsx
+|   |   |   |   |   `-- StatCard.jsx
+|   |   |   |   `-- ProtectedRoute.jsx
+|   |   |   |-- context
+|   |   |   |   |-- AuthContext.jsx
+|   |   |   |   `-- ThemeContext.jsx
+|   |   |   |-- hooks
+|   |   |   |   |-- useDebounce.js
+|   |   |   |   `-- useRazorpay.js
+|   |   |   |-- layouts
+|   |   |   |   `-- DashboardLayout.jsx
+|   |   |   |-- pages
+|   |   |   |   |-- admin
+|   |   |   |   |   |-- AdminDashboard.jsx
+|   |   |   |   |   |-- AdminLogs.jsx
+|   |   |   |   |   |-- AdminOrders.jsx
+|   |   |   |   |   |-- AdminPayments.jsx
+|   |   |   |   |   |-- AdminRefunds.jsx
+|   |   |   |   |   `-- AdminUsers.jsx
+|   |   |   |   |-- auth
+|   |   |   |   |   |-- ForgotPassword.jsx
+|   |   |   |   |   |-- Login.jsx
+|   |   |   |   |   |-- Register.jsx
+|   |   |   |   |   |-- ResetPassword.jsx
+|   |   |   |   |   `-- VerifyEmail.jsx
+|   |   |   |   |-- dashboard
+|   |   |   |   |   |-- Dashboard.jsx
+|   |   |   |   |   |-- Orders.jsx
+|   |   |   |   |   |-- Profile.jsx
+|   |   |   |   |   |-- Refunds.jsx
+|   |   |   |   |   |-- Settings.jsx
+|   |   |   |   |   `-- Transactions.jsx
+|   |   |   |   |-- payment
+|   |   |   |   |   |-- Checkout.jsx
+|   |   |   |   |   `-- PaymentSuccess.jsx
+|   |   |   |   |-- Home.jsx
+|   |   |   |   `-- NotFound.jsx
+|   |   |   |-- services
+|   |   |   |   |-- adminService.js
+|   |   |   |   |-- api.js
+|   |   |   |   |-- authService.js
+|   |   |   |   `-- paymentService.js
+|   |   |   |-- utils
+|   |   |   |   |-- download.js
+|   |   |   |   `-- format.js
+|   |   |   |-- App.jsx
+|   |   |   |-- index.css
+|   |   |   `-- main.jsx
+|   |   |-- .env
+|   |   |-- .env.example
+|   |   |-- index.html
+|   |   |-- package.json
+|   |   |-- package-lock.json
+|   |   |-- postcss.config.js
+|   |   |-- tailwind.config.js
+|   |   |-- vercel.json
+|   |   `-- vite.config.js
+|   |-- server
+|   |   |-- config
+|   |   |   |-- db.js
+|   |   |   `-- razorpay.js
+|   |   |-- controllers
+|   |   |   |-- adminController.js
+|   |   |   |-- authController.js
+|   |   |   |-- invoiceController.js
+|   |   |   |-- orderController.js
+|   |   |   |-- paymentController.js
+|   |   |   `-- webhookController.js
+|   |   |-- middleware
+|   |   |   |-- auth.js
+|   |   |   |-- errorHandler.js
+|   |   |   |-- rateLimiter.js
+|   |   |   |-- upload.js
+|   |   |   `-- validate.js
+|   |   |-- models
+|   |   |   |-- Invoice.js
+|   |   |   |-- Log.js
+|   |   |   |-- Order.js
+|   |   |   |-- Payment.js
+|   |   |   |-- Refund.js
+|   |   |   `-- User.js
+|   |   |-- routes
+|   |   |   |-- adminRoutes.js
+|   |   |   |-- authRoutes.js
+|   |   |   |-- invoiceRoutes.js
+|   |   |   |-- orderRoutes.js
+|   |   |   |-- paymentRoutes.js
+|   |   |   `-- webhookRoutes.js
+|   |   |-- services
+|   |   |   |-- emailService.js
+|   |   |   `-- invoiceService.js
+|   |   |-- uploads
+|   |   |   |-- avatars
+|   |   |   |-- invoices
+|   |   |   `-- .gitkeep
+|   |   |-- utils
+|   |   |   |-- AppError.js
+|   |   |   |-- asyncHandler.js
+|   |   |   `-- token.js
+|   |   |-- validators
+|   |   |   |-- authValidator.js
+|   |   |   `-- paymentValidator.js
+|   |   |-- .env
+|   |   |-- .env.example
+|   |   |-- package.json
+|   |   |-- package-lock.json
+|   |   |-- seed.js
+|   |   `-- server.js
+|   |-- .gitignore
+|   |-- package.json
+|   |-- package-lock.json
+|   |-- projects structure.txt
+|   `-- README.md

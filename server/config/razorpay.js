@@ -13,7 +13,11 @@ const getRazorpay = () => {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-  if (!keyId || keyId.includes('xxxx')) {
+  // Log only that the variables exist — never their values.
+  console.log('Razorpay Key ID exists:', !!keyId);
+  console.log('Razorpay Key Secret exists:', !!keySecret);
+
+  if (!keyId || !keySecret || keyId.includes('xxxx') || keySecret.includes('xxxx')) {
     throw new Error(
       'Razorpay keys not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your .env file.'
     );

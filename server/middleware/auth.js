@@ -15,38 +15,27 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   if (!token) {
-    return next(new AppError('Not authorized, no token provided', 401));
+    return next(new AppError('Not authorized, no token provided', 401, 'NO_TOKEN'));
   }
 
   try {
-    console.log("========== AUTH DEBUG ==========");
-    console.log("Authorization Header:", req.headers.authorization);
-    console.log("JWT_SECRET:", process.env.JWT_SECRET);
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    console.log("Decoded Token:", decoded);
 
     const user = await User.findById(decoded.id);
 
-    console.log("User Found:", user);
-
     if (!user) {
-      return next(new AppError("User no longer exists", 401));
+      return next(new AppError('User no longer exists', 401, 'INVALID_TOKEN'));
     }
 
     if (!user.isActive) {
-      return next(new AppError("Account has been deactivated", 403));
+      return next(new AppError('Account has been deactivated', 403));
     }
 
     req.user = user;
     next();
   } catch (err) {
-    console.log("========== JWT ERROR ==========");
-    console.log("Error Name:", err.name);
-    console.log("Error Message:", err.message);
-
-    return next(new AppError(err.message, 401));
+    const code = err.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN';
+    return next(new AppError(err.message, 401, code));
   }
 });
 

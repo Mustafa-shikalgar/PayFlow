@@ -28,6 +28,16 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
+// ─── Trust proxy ─────────────────────────────────────────────────────────────
+// Render sits behind a reverse proxy that sets the X-Forwarded-For header.
+// express-rate-limit v7 throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR when that
+// header is present but Express `trust proxy` is false (the default).
+// Setting it to the number of proxy hops (1 on Render) fixes the error while
+// remaining safe (NOT the permissive boolean `true`).
+// Override with the TRUST_PROXY environment variable if needed.
+const trustProxy = Number(process.env.TRUST_PROXY || 1);
+app.set('trust proxy', Number.isFinite(trustProxy) ? trustProxy : 1);
+
 // Security headers
 app.use(helmet());
 
@@ -73,7 +83,20 @@ app.use(mongoSanitize());
 app.use(xss());
 
 // Static files (uploads)
+// NOTE: Render's filesystem is ephemeral — files written to /uploads do NOT
+// persist across deploys/restarts. For production avatar/invoice persistence
+// use object storage (e.g. Cloudinary/S3) instead of the local disk.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Root / health response (fixes GET / returning 404)
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'PayFlow API is running',
+    service: 'PayFlow API',
+    health: '/api/health',
+  });
+});
 
 // Health check
 app.get('/api/health', (req, res) => {

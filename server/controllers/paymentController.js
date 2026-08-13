@@ -40,17 +40,56 @@ const generateRefundId = () => {
 const createOrder = asyncHandler(async (req, res) => {
   const { amount, currency = 'INR', description } = req.body;
 
+  // ── Temporary debug logging (NO secrets, NO tokens, NO credentials) ──────
+  console.log('CREATE ORDER: entering createOrder');
+  console.log('CREATE ORDER: req.user id:', req.user ? req.user._id.toString() : 'MISSING');
+  console.log('CREATE ORDER: body keys:', Object.keys(req.body || {}));
+  console.log('CREATE ORDER: amount =', amount, '| currency =', currency);
+  console.log('CREATE ORDER: Razorpay Key ID exists:', !!process.env.RAZORPAY_KEY_ID);
+  console.log('CREATE ORDER: Razorpay Key Secret exists:', !!process.env.RAZORPAY_KEY_SECRET);
+
+  // Initialize Razorpay client
+  let razorpay;
+  try {
+    razorpay = getRazorpay();
+    console.log('CREATE ORDER: Razorpay initialized OK');
+  } catch (err) {
+    console.error('CREATE ORDER: Razorpay init failed:', err.message);
+    throw new AppError('Payment service is not configured. Please contact support.', 500);
+  }
+
   // Create Razorpay order
-  const razorpay = getRazorpay();
-  const razorpayOrder = await razorpay.orders.create({
-    amount,
-    currency,
-    receipt: `receipt_${Date.now()}`,
-    notes: {
-      userId: req.user._id.toString(),
-      description: description || 'Payment',
-    },
-  });
+  let razorpayOrder;
+  try {
+    razorpayOrder = await razorpay.orders.create({
+      amount,
+      currency,
+      receipt: `receipt_${Date.now()}`,
+      notes: {
+        userId: req.user._id.toString(),
+        description: description || 'Payment',
+      },
+    });
+    console.log('CREATE ORDER: Razorpay order created:', razorpayOrder.id);
+  } catch (err) {
+    // The Razorpay SDK throws a plain object `{ statusCode, error }` (no
+    // message/stack) on API failures. Normalize it and map a gateway 401
+    // (bad server credentials) to a 500 so it is never confused with an
+    // expired user access token.
+    const gatewayStatus = err && err.statusCode;
+    const description =
+      (err && err.error && (err.error.description || err.error.reason)) ||
+      err.message ||
+      'Payment gateway rejected the request';
+    console.error('CREATE ORDER: Razorpay API error:', {
+      gatewayStatus,
+      description,
+    });
+    throw new AppError(
+      `Failed to create payment order: ${description}`,
+      GatewayStatusCode(gatewayStatus)
+    );
+  }
 
   // Create order in DB
   const order = await Order.create({
@@ -62,6 +101,7 @@ const createOrder = asyncHandler(async (req, res) => {
     description: description || 'Payment',
     status: 'created',
   });
+  console.log('CREATE ORDER: DB order created:', order.orderId);
 
   res.status(201).json({
     success: true,
@@ -72,6 +112,15 @@ const createOrder = asyncHandler(async (req, res) => {
     },
   });
 });
+
+/**
+ * Map an upstream (Razorpay) HTTP status to a sensible response status.
+ * A gateway 401 is a *server* credential problem → 500, NOT a user auth error.
+ */
+function GatewayStatusCode(status) {
+  if (!Number.isInteger(status) || status < 400 || status > 599) return 500;
+  return status === 401 ? 500 : status;
+}
 
 /**
  * @desc    Verify payment signature (backend verification)
